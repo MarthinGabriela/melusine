@@ -89,10 +89,9 @@ async def on_message(message):
         emb=discord.Embed(title="Chess Participant", description=msg)
         return await message.channel.send(embed=emb)
 
-    roleGulag = message.guild.get_role((int(os.getenv('GULAG'))))
-    roleGeneral = message.guild.get_role(int(os.getenv('GENERAL')))
-    roleSoldier = message.guild.get_role((int(os.getenv('SOLDIER'))))
-    roleTahanan = message.guild.get_role((int(os.getenv('TAHANAN'))))
+    roleGulag = message.guild.get_role((831809746406342676))
+    roleGeneral = message.guild.get_role(759042286310653994)
+    roleSoldier = message.guild.get_role((759042675012796457))
 
     if (message.author.id == owner) or (message.author.id == supreme):
         if(len(message.mentions)>0 and message.content.lower().startswith('grant ')):
@@ -184,9 +183,8 @@ async def on_raw_reaction_add(payload):
     reaction = discord.utils.get(message.reactions, emoji=payload.emoji)
 
     server = await melusine.fetch_guild(payload.guild_id)
-    roleGulag = message.guild.get_role((int(os.getenv('GULAG'))))
-    roleSoldier = message.guild.get_role((int(os.getenv('SOLDIER'))))
-    roleGeneral = message.guild.get_role(int(os.getenv('GENERAL')))
+    roleGulag = message.guild.get_role((831809746406342676))
+    roleGeneral = message.guild.get_role(759042286310653994)
     
     msgTime = message.created_at
     now = datetime.utcnow()
