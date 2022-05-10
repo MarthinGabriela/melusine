@@ -1,19 +1,17 @@
 from datetime import datetime
 import asyncio
 from asyncio.events import get_event_loop
+import json
+import sqlite3
 import discord
-import os
 import random
-import dotenv
 from discord.ext import commands, tasks
 import discord.utils
 from datetime import datetime
 from discord.utils import get
-import queue
-import time
 from collections import deque
-import threading
 import random
+from aiohttp import request
 
 intents = discord.Intents.default()
 intents.members = True
@@ -34,7 +32,6 @@ pesan_semangat = [
     "Have you ever wondered how this kind of confidence is actually dangerous?"
 ]
 listGulag = {}
-listExGulag = []
 
 femboiDetector = [
     "femboi",
@@ -55,13 +52,18 @@ antiFemboi = [
     "https://cdn.discordapp.com/attachments/973278400577937472/973285395410329661/unknown.png",
     "https://cdn.discordapp.com/attachments/973278400577937472/973287789573578812/unknown.png",
     "I don't know you have such shit taste. Considering blocking."
+    "Get an actual GF."
+    "I wish there was someone out there that could slap you."
+    "Please, stop!"
 ]
 
 unsent = deque()
 
+URL = "https://evilinsult.com/generate_insult.php?lang=en&type=json"
+
 @melusine.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(melusine))
+  print('We have logged in as {0.user}'.format(melusine))
 
 @melusine.event
 async def on_message(message):
@@ -92,6 +94,7 @@ async def on_message(message):
     roleGulag = message.guild.get_role((831809746406342676))
     roleGeneral = message.guild.get_role(759042286310653994)
     roleSoldier = message.guild.get_role((759042675012796457))
+    roleExGulag = message.guild.get_role(973536505031180309)
 
     if (message.author.id == owner) or (message.author.id == supreme):
         if(len(message.mentions)>0 and message.content.lower().startswith('grant ')):
@@ -140,9 +143,10 @@ async def on_message(message):
         print('Gulag petition procedure has been initiated')
         
         if(len(message.mentions) > 0):
-          if(message.author in listExGulag):
+          if(roleExGulag in message.author.roles):
               msg = "Detention vote to the convicted is rejected because you are still in cooldown period after being expunged to Gulag. Please wait until your session is over."
               await message.reply(msg)
+              return
           user = message.mentions[-1]
           if user == melusine.user:
             return
@@ -158,7 +162,7 @@ async def on_message(message):
           await msg.add_reaction(emoji)
 
     if(any(femboiWord in message.content.lower() for femboiWord in femboiDetector)):
-        if (random.random() < 20):
+        if (random.random() < 0.1):
             msg = random.choice(antiFemboi)
             return await message.reply(msg, mention_author=False)
         return
@@ -172,6 +176,16 @@ async def on_message(message):
           msg = "There are no unsent message"
           emb=discord.Embed(title="Nothing", description=msg)
         await channel.send(embed=emb)
+    
+    if melusine.user.mentioned_in(message):
+      if(message.author.id == owner):
+        return await message.reply("Yes Master? \n https://cdn.discordapp.com/attachments/973278400577937472/973515982175866890/unknown.png")
+      async with request("GET", URL, headers={}) as response:
+        if response.status == 200:
+          data = await response.json()
+          await message.reply(data["insult"], mention_author=False)
+        else:
+          await message.reply("I don't want to answer to you.", mention_author=False)
 
 @melusine.event
 async def on_raw_reaction_add(payload):
@@ -183,7 +197,8 @@ async def on_raw_reaction_add(payload):
     reaction = discord.utils.get(message.reactions, emoji=payload.emoji)
 
     server = await melusine.fetch_guild(payload.guild_id)
-    roleGulag = message.guild.get_role((831809746406342676))
+    roleGulag = message.guild.get_role(831809746406342676)
+    roleExGulag = message.guild.get_role(973536505031180309)
     roleGeneral = message.guild.get_role(759042286310653994)
     
     msgTime = message.created_at
@@ -197,15 +212,17 @@ async def on_raw_reaction_add(payload):
     if total_seconds < hour:
       for person in userList:
         member = await server.fetch_member(person.id)
-        if (not roleGulag in member.roles) and (not member.id in listExGulag):
+        if (not roleGulag in member.roles) and (not roleExGulag in member.roles):
           counter += 1
       if(counter < 7):
         return
+      print(payload.message_id)
       idConvicted = listGulag[payload.message_id]
       user = await server.fetch_member(idConvicted)
       listGulag.pop(payload.message_id)
-      listExGulag.add(user.id)
+      
       await user.add_roles(roleGulag)
+
       if (roleGeneral in user.roles):
         await user.remove_roles(roleGeneral)
       gulagChannel = melusine.get_channel(831810540602523648)
@@ -213,10 +230,16 @@ async def on_raw_reaction_add(payload):
       await gulagChannel.send("Suspect " + user.mention + " has been convicted to Gulag Detention. Enjoy your stay!")
       
       await asyncio.sleep(86400)
+      await user.add_roles(roleExGulag)
+      if(user.id in general):
+        await user.add_roles(roleGeneral)
+      await user.remove_roles(roleGulag)
       msg = "Judgement has been relieved from " + user.mention + "\nNow you can enact your revenge you always wanted all this time"
       await gulagChannel.send(msg)
+      
       await asyncio.sleep(172800)
-      listExGulag.remove(user.id)
+      user.remove_roles(roleExGulag)
+      ## Remove Role ExGulag
       return
     else:
       await message.delete(message)
